@@ -1,0 +1,165 @@
+# ————————————— Setup (uma vez) —————————————
+    LDI  $0    # limpa displays e LEDs…
+    STA  @288
+    STA  @289
+    STA  @290
+    STA  @291
+    STA  @292
+    STA  @293
+    STA  @256
+    STA  @257
+    STA  @258
+    STA  @510
+
+    LDI  $0    # inicializa variáveis e flags
+    STA  @0
+    STA  @1
+    STA  @2
+    STA  @8
+    STA  @9 # Const_0 = 0
+
+    LDI  $1    # constantes
+    STA  @6  # Const_1 = 1
+    LDI  $10
+    STA  @7  # Const_10 = 10
+
+
+# Laço principal (Loop)
+
+LOOP: # início do loop
+    # 1 -> Leitura de KEY0 (botão de incremento)
+    LDA @352 # Carrega AC <- leitura de KEY0
+    CEQ @0 # flagZero = 1 se KEY0 não foi pressionado
+    JEQ skip_incr # Se flagZero = 1 (ou seja, KEY0=0) pula incremento
+    JSR @INCREMENT # Senão, chama sub-rotina de incremento
+
+skip_incr:
+    # 2 -> Atualiza os displays com os valores em RAM
+    LDA @0 # AC <- unidades
+    STA @288 # HEX0 <- unidades
+    LDA @1 # AC <- dezenas
+    STA @289 # HEX1 <- dezenas
+    LDA @2 # AC <- centenas
+    STA @290 # HEX2 <- centenas
+
+    # 3 -> Leitura de KEY1 (configuração de limite)
+    LDA @353 # AC <- KEY1 (leitura de KEY1)
+    CEQ @0 
+    JEQ skip_limit # Se não for pressionado, pula
+    JSR @SET_LIMIT # Se for pressionado, chama sub-rotina de configuração de limite
+
+skip_limit:
+    # 4 -> Verificação de limite (sempre executa)
+    JSR @CHECK_LIM # rotina que compara contador x limite e acende indicador
+
+    # 5 -> Leitura de FPGA_RESET (reinício)
+    LDA @356 # AC <- FPGA_RESET
+    CEQ @0
+    JEQ skip_rst # Se não for pressionado, pula
+    JSR @RESTART # Senão, chama sub-rotina de reinício
+
+skip_rst:
+    # 6 -> Volta ao início do loop
+    JMP @LOOP
+
+SET_LIMIT:
+    # lê unidades SW0-SW7
+    LDA @320 # AC <- leitura das 8 chaves 
+    STA @3 # MEM[3] <- unidades limite
+
+    # lê dezenas SW8
+    LDA @321 # AC <- Leitura da chave SW8
+    AND @1 # mascara 0b0000_0001 (só o bit0 importa)
+    STA @4 # MEM[4] <- dezenas de limite
+
+    # lê centenas SW9
+    LDA @322 # AC <- leitura da chave SW9
+    AND @1 #mascara para isolar bit0
+    STA @5 # MEM[5] <- centenas limite
+
+    RET #volta ao loop principal
+
+INCREMENT:
+    # 1 -> Debounce: limpa o flag do KEY0
+    STA @511
+
+    # 2 -> Incrementa UNIDADES
+    LDA @0 # AC <- MEM[0]
+    SOMA @6 # AC <- AC + 1
+    CEQ @7 # flagZero = 1 se AC = 10
+    JEQ inc_dezenas
+    STA @0 # MEM[0] <- AC
+    RET # voltou ao loop
+
+inc_dezenas:
+    LDI $0
+    STA @0 # MEM[0] <- 0 (unidades zerada)
+    # Incrementa DEZENAS 
+    LDA @1
+    SOMA @6 #AC <- AC + 1
+    CEQ @7
+    JEQ inc_centenas
+    STA @1
+    RET
+
+inc_centenas:
+    LDI $0
+    STA @1 # MEM[1] <- 0 (dezenas zerada)
+    LDA @2
+    SOMA @6
+    CEQ @7
+    JEQ trat_overflow
+    STA @2
+    RET
+
+trat_overflow:
+    LDI $0
+    STA @2 # MEM[2] <- 0 (centenas)
+    LDI $1
+    STA @8 # MEM[8] <- 1 "flag inibir contagem"
+    LDI $1
+    STA @257 # LEDR8 <- 1 (acende indicador de overflow)
+    RET
+
+CHECK_LIM:
+    # testa unidades
+    LDA @0
+    CEQ @3 # MEM[3] = limite de unidades
+    JEQ cont_lim2
+    RET # se não for igual, sai
+
+cont_lim2:
+    # testa dezenas
+    LDA @1
+    CEQ @4
+    JEQ cont_lim3
+    RET
+
+cont_lim3:
+    # testa centenas
+    LDA @2
+    CEQ @5
+    JEQ aplica_limit
+    RET
+
+aplica_limit:
+    LDI $1
+    STA @8 # MEM[8] <- 1 (flag inibir)
+    LDI $1
+    STA @258 #LEDR9 <- 1 (acende indicador de "limite atingido")
+    RET
+
+RESTART:
+    LDI $0
+    STA @0 #unidades <- 0
+    STA @1 #dezenas <- 0
+    STA @2 #centenas <- 0
+
+    LDI $0
+    STA @8 #flag inibir <- 0
+
+    LDI $0
+    STA @257 #LEDR8 <- 8
+    STA @258 #LEDR9 <- 0
+
+    RET

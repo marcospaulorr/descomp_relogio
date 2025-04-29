@@ -1,0 +1,388 @@
+# ————————————— Setup (uma vez) —————————————
+    LDI  $0    # limpa displays e LEDs…
+    STA  @288
+    STA  @289
+    STA  @290
+    STA  @291
+    STA  @292
+    STA  @293
+    STA  @256
+    STA  @257
+    STA  @258
+    STA  @510
+    STA  @511
+
+    LDI  $0    # inicializa variáveis e flags
+    STA  @0  # unidade
+    STA  @1  # dezena
+    STA  @2  # centena
+    STA  @3  # milhar
+    STA  @4  # dezena de milhar
+    STA  @5  # centena de milhar
+    STA  @8
+    STA  @9 # Const_0 = 0
+
+    LDI  $1    # constantes
+    STA  @6  # Const_1 = 1
+    LDI  $10
+    STA  @7  # Const_10 = 10
+
+
+# Laço principal (Loop)
+
+LOOP: # início do loop
+    # 1 -> Leitura de KEY0 (botão de incremento)
+    LDA @352 # Carrega AC <- leitura de KEY0
+    CEQ @9 # flagZero = 1 se KEY0 não foi pressionado
+    JEQ skip_incr # Se flagZero = 1 (ou seja, KEY0=0) pula incremento
+    JSR @INCREMENT # Senão, chama sub-rotina de incremento
+
+skip_incr:
+    # 2 -> Atualiza os displays com os valores em RAM
+    LDA @0 # AC <- unidades
+    STA @288 # HEX0 <- unidades
+    LDA @1 # AC <- dezenas
+    STA @289 # HEX1 <- dezenas
+    LDA @2 # AC <- centenas
+    STA @290 # HEX2 <- centenas
+    LDA @3  # AC <- unidade milhar
+    STA @291 # HEX3 <- unidade milhar
+    LDA @4  # AC <- dezena milhar
+    STA @292 # HEX4 <- dezena milhar
+    LDA @5 # AC <- centena milhar
+    STA @293 # HEX5 <- centena milhar
+
+    # 3 -> Leitura de KEY1 (configuração de limite)
+    LDA @353 # AC <- KEY1 (leitura de KEY1)
+    CEQ @9 
+    JEQ skip_limit # Se não for pressionado, pula
+    JSR @SET_LIMIT # Se for pressionado, chama sub-rotina de configuração de limite
+
+skip_limit:
+    # 4 -> Verificação de limite (sempre executa)
+    JSR @CHECK_LIM # rotina que compara contador x limite e acende indicador
+
+    # 5 -> Leitura de FPGA_RESET (reinício)
+    LDA @356 # AC <- FPGA_RESET
+    CEQ @9
+    JEQ skip_rst # Se não for pressionado, pula
+    JSR @RESTART # Senão, chama sub-rotina de reinício
+
+skip_rst:
+    # 6 -> Volta ao início do loop
+    JMP @LOOP
+
+SET_LIMIT:
+    # Limpa KEY1
+    STA @510
+
+    # PRIMEIRA PRESSÃO: UNIDADES
+    # Indica através do LED que está configurando o dígito de UNIDADES
+    LDI $1
+    STA @256      # Acende apenas o LED0 (binário 00000001)
+
+    # Lê unidades (SW0-SW7)
+    LDA @320      # AC <- Leitura das 8 chaves
+    STA @10       # MEM[10] <- unidades limite
+    STA @288      # Mostra no HEX0 o valor sendo configurado
+
+    # Aguarda próxima pressão de KEY1
+AGUARDA_KEY1_1:
+    LDA @353      # Lê KEY1
+    CEQ @9        # Compara com 0 - verificando se está pressionado
+    JEQ AGUARDA_KEY1_1_SOLTAR  # Se KEY1=0 (pressionado), espera soltar
+    JMP AGUARDA_KEY1_1         # Caso contrário, continua aguardando
+
+    # Aguarda soltar o botão KEY1
+AGUARDA_KEY1_1_SOLTAR:
+    STA @510      # Limpa flag KEY1
+    LDA @353      # Lê KEY1
+    CEQ @6        # Compara com 1 - verificando se foi solto
+    JEQ AGUARDA_KEY1_2_INICIO  # Se KEY1=1 (solto), continua
+    JMP AGUARDA_KEY1_1_SOLTAR  # Caso contrário, continua aguardando
+    
+    # SEGUNDA PRESSÃO: DEZENAS
+AGUARDA_KEY1_2_INICIO:
+    # Indica através do LED que está configurando o dígito de DEZENAS
+    LDI $2
+    STA @256      # Acende LED1 (binário 00000010)
+
+    # Lê dezenas (SW0-SW7)
+    LDA @320      # Lê novamente as chaves
+    STA @11       # MEM[11] <- dezenas limite
+    STA @289      # Mostra no HEX1 o valor sendo configurado
+
+    # Aguarda próxima pressão de KEY1
+AGUARDA_KEY1_2:
+    LDA @353      # Lê KEY1
+    CEQ @9        # Compara com 0
+    JEQ AGUARDA_KEY1_2_SOLTAR  # Se KEY1=0 (pressionado), espera soltar
+    JMP AGUARDA_KEY1_2         # Caso contrário, continua aguardando
+
+    # Aguarda soltar o botão KEY1
+AGUARDA_KEY1_2_SOLTAR:
+    STA @510      # Limpa flag KEY1
+    LDA @353      # Lê KEY1
+    CEQ @6        # Compara com 1
+    JEQ AGUARDA_KEY1_3_INICIO  # Se KEY1=1 (solto), continua
+    JMP AGUARDA_KEY1_2_SOLTAR  # Caso contrário, continua aguardando
+
+    # TERCEIRA PRESSÃO: CENTENAS
+AGUARDA_KEY1_3_INICIO:
+    # Indica através do LED
+    LDI $4
+    STA @256      # Acende apenas o LED2 (binário 00000100)
+
+    # Lê centenas
+    LDA @320      # Lê novamente as chaves
+    STA @12       # MEM[12] <- centenas limite
+    STA @290      # Mostra no HEX2 o valor sendo configurado
+
+    # Aguarda próxima pressão de KEY1
+AGUARDA_KEY1_3:
+    LDA @353      # Lê KEY1
+    CEQ @9        # Compara com 0
+    JEQ AGUARDA_KEY1_3_SOLTAR  # Se KEY1=0 (pressionado), espera soltar
+    JMP AGUARDA_KEY1_3         # Caso contrário, continua aguardando
+
+    # Aguarda soltar o botão KEY1
+AGUARDA_KEY1_3_SOLTAR:
+    STA @510      # Limpa flag KEY1
+    LDA @353      # Lê KEY1
+    CEQ @6        # Compara com 1
+    JEQ AGUARDA_KEY1_4_INICIO  # Se KEY1=1 (solto), continua
+    JMP AGUARDA_KEY1_3_SOLTAR  # Caso contrário, continua aguardando
+
+    # QUARTA PRESSÃO: UNIDADES DE MILHAR
+AGUARDA_KEY1_4_INICIO:
+    # Indica através do LED
+    LDI $8
+    STA @256      # Acende apenas o LED3 (binário 00001000)
+
+    # Lê unidades de milhar
+    LDA @320      # Lê novamente as chaves
+    STA @13       # MEM[13] <- unidades de milhar limite
+    STA @291      # Mostra no HEX3 o valor sendo configurado
+
+    # Aguarda próxima pressão de KEY1
+AGUARDA_KEY1_4:
+    LDA @353      # Lê KEY1
+    CEQ @9        # Compara com 0
+    JEQ AGUARDA_KEY1_4_SOLTAR  # Se KEY1=0 (pressionado), espera soltar
+    JMP AGUARDA_KEY1_4         # Caso contrário, continua aguardando
+
+    # Aguarda soltar o botão KEY1
+AGUARDA_KEY1_4_SOLTAR:
+    STA @510      # Limpa flag KEY1
+    LDA @353      # Lê KEY1
+    CEQ @6        # Compara com 1
+    JEQ AGUARDA_KEY1_5_INICIO  # Se KEY1=1 (solto), continua
+    JMP AGUARDA_KEY1_4_SOLTAR  # Caso contrário, continua aguardando
+
+    # QUINTA PRESSÃO: DEZENAS DE MILHAR
+AGUARDA_KEY1_5_INICIO:
+    # Indica através do LED
+    LDI $16
+    STA @256      # Acende apenas o LED4 (binário 00010000)
+
+    # Lê dezenas de milhar
+    LDA @320      # Lê novamente as chaves
+    STA @14       # MEM[14] <- dezenas de milhar limite
+    STA @292      # Mostra no HEX4 o valor sendo configurado
+
+    # Aguarda próxima pressão de KEY1
+AGUARDA_KEY1_5:
+    LDA @353      # Lê KEY1
+    CEQ @9        # Compara com 0
+    JEQ AGUARDA_KEY1_5_SOLTAR  # Se KEY1=0 (pressionado), espera soltar
+    JMP AGUARDA_KEY1_5         # Caso contrário, continua aguardando
+
+    # Aguarda soltar o botão KEY1
+AGUARDA_KEY1_5_SOLTAR:
+    STA @510      # Limpa flag KEY1
+    LDA @353      # Lê KEY1
+    CEQ @6        # Compara com 1
+    JEQ AGUARDA_KEY1_6_INICIO  # Se KEY1=1 (solto), continua
+    JMP AGUARDA_KEY1_5_SOLTAR  # Caso contrário, continua aguardando
+
+    # SEXTA PRESSÃO: CENTENAS DE MILHAR
+AGUARDA_KEY1_6_INICIO:
+    # Indica através do LED
+    LDI $32
+    STA @256      # Acende apenas o LED5 (binário 00100000)
+
+    # Lê centenas de milhar
+    LDA @320      # Lê novamente as chaves
+    STA @15       # MEM[15] <- centenas de milhar limite
+    STA @293      # Mostra no HEX5 o valor sendo configurado
+
+    # Aguarda próxima pressão de KEY1
+AGUARDA_KEY1_6:
+    LDA @353      # Lê KEY1
+    CEQ @9        # Compara com 0
+    JEQ AGUARDA_KEY1_6_SOLTAR  # Se KEY1=0 (pressionado), espera soltar
+    JMP AGUARDA_KEY1_6         # Caso contrário, continua aguardando
+
+    # Aguarda soltar o botão KEY1 (última vez)
+AGUARDA_KEY1_6_SOLTAR:
+    STA @510      # Limpa flag KEY1
+    LDA @353      # Lê KEY1
+    CEQ @6        # Compara com 1
+    JEQ FIM_CONFIG  # Se KEY1=1 (solto), termina a configuração
+    JMP AGUARDA_KEY1_6_SOLTAR  # Caso contrário, continua aguardando
+
+FIM_CONFIG:
+    # Limpa os LEDs ao terminar
+    LDI $0
+    STA @256
+    
+    # Limpa KEY1 uma última vez
+    STA @510
+    
+    RET          # Retorna ao programa principal
+
+INCREMENT:
+    # 1 -> Debounce: limpa o flag do KEY0
+    STA @511
+
+    # 2 -> Verifica flag de inibição de contagem
+    LDA @8 # Carrega flag de inibição
+    CEQ @9 # Compara com a constante zero 
+    JEQ continua_increment # Se flag=0, continua incremento
+    RET # Se flag=1, retorna sem incrementar
+
+continua_increment:
+    # 3 -> Incrementa UNIDADES
+    LDA @0 # AC <- MEM[0]
+    SOMA @6 # AC <- AC + 1
+    CEQ @7 # flagZero = 1 se AC = 10
+    JEQ inc_dezenas
+    STA @0 # MEM[0] <- AC
+    RET # voltou ao loop
+
+inc_dezenas:
+    LDI $0
+    STA @0 # MEM[0] <- 0 (unidades zerada)
+    # Incrementa DEZENAS 
+    LDA @1
+    SOMA @6 #AC <- AC + 1
+    CEQ @7
+    JEQ inc_centenas
+    STA @1
+    RET
+
+inc_centenas:
+    LDI $0
+    STA @1 # MEM[1] <- 0 (dezenas zerada)
+    LDA @2
+    SOMA @6
+    CEQ @7
+    JEQ inc_milhar
+    STA @2
+    RET
+
+inc_milhar:
+    LDI $0
+    STA @2 # MEM[2] <- 0 (centenas zerada)
+    LDA @3
+    SOMA @6
+    CEQ @7
+    JEQ inc_dez_milhar
+    STA @3
+    RET
+
+inc_dez_milhar:
+    LDI $0
+    STA @3 # MEM[3] <- 0 (milhar zerada)
+    LDA @4
+    SOMA @6
+    CEQ @7
+    JEQ inc_cent_milhar
+    STA @4
+    RET
+
+inc_cent_milhar:
+    LDI $0
+    STA @4 # MEM[4] <- 0 (dezena de milhar zerada)
+    LDA @5
+    SOMA @6
+    CEQ @7 # se = 10 -> overflow geral
+    JEQ trat_overflow
+    STA @5
+    RET
+
+trat_overflow:
+    LDI $0
+    STA @5 # MEM[2] <- 0 (centenas)
+    LDI $1
+    STA @8 # MEM[8] <- 1 "flag inibir contagem"
+    LDI $1
+    STA @257 # LEDR8 <- 1 (acende indicador de overflow)
+    RET
+
+CHECK_LIM:
+    # testa unidades
+    LDA @0
+    CEQ @10 # MEM[10] = limite de unidades
+    JEQ cont_lim2
+    RET # se não for igual, sai
+
+cont_lim2:
+    # testa dezenas
+    LDA @1
+    CEQ @11
+    JEQ cont_lim3
+    RET
+
+cont_lim3:
+    # testa centenas
+    LDA @2
+    CEQ @12
+    JEQ cont_lim4
+    RET
+
+cont_lim4:
+    # testa milhar
+    LDA @3
+    CEQ @13
+    JEQ cont_lim5
+    RET
+
+cont_lim5:
+    # testa dezena de milhar
+    LDA @4
+    CEQ @14
+    JEQ cont_lim6
+    RET
+
+cont_lim6:
+    # testa centena de milhar
+    LDA @5
+    CEQ @15
+    JEQ aplica_limit
+    RET    
+
+aplica_limit:
+    LDI $1
+    STA @8 # MEM[8] <- 1 (flag inibir)
+    LDI $1
+    STA @258 #LEDR9 <- 1 (acende indicador de "limite atingido")
+    RET
+
+RESTART:
+    LDI $0
+    STA @0 #unidades <- 0
+    STA @1 #dezenas <- 0
+    STA @2 #centenas <- 0
+    STA @3 #milhar <- 0
+    STA @4 #dezena de milhar <- 0
+    STA @5 #centena de milhar <- 0
+
+    LDI $0
+    STA @8 #flag inibir <- 0
+
+    LDI $0
+    STA @257 #LEDR8 <- 8
+    STA @258 #LEDR9 <- 0
+
+    RET

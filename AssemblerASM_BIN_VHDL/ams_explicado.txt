@@ -1,0 +1,105 @@
+LDI  $0    # limpa displays e LEDs…
+STA  @288  # apaga HEX0
+STA  @289  # apaga HEX1
+STA  @290  # apaga HEX2
+STA  @291  # apaga HEX3
+STA  @292  # apaga HEX4
+STA  @293  # apaga HEX5
+STA  @256  # apaga LEDR0~LEDR7
+STA  @257  # apaga LEDR8
+STA  @258  # apaga LEDR9
+LDI  $0    # inicializa variáveis e flags
+STA  @0    # MEM[0] ← 0 (unidades)
+STA  @1    # MEM[1] ← 0 (dezenas)
+STA  @2    # MEM[2] ← 0 (centenas)
+STA  @8    # MEM[8] ← 0 (flag inibir contagem)
+LDI  $1    # constante 1
+STA  @6    # MEM[6] ← 1 (incremento)
+LDI  $10   # constante 10
+STA  @7    # MEM[7] ← 10 (limite)
+LDA  @352  # Carrega AC ← leitura de KEY0
+CEQ  @0    # flagZero =1 se KEY0 não foi pressionado
+JEQ  23    # se flagZero=1 pula incremento
+JSR  49    # chama sub‑rotina INCREMENT
+LDA  @0    # AC ← unidades
+STA  @288  # HEX0 ← unidades
+LDA  @1    # AC ← dezenas
+STA  @289  # HEX1 ← dezenas
+LDA  @2    # AC ← centenas
+STA  @290  # HEX2 ← centenas
+LDA  @353  # AC ← leitura de KEY1
+CEQ  @0    # flagZero =1 se KEY1 não foi pressionado
+JEQ  33    # se flagZero=1 pula SET_LIMIT
+JSR  40    # chama sub‑rotina SET_LIMIT
+JSR  79    # chama sub‑rotina CHECK_LIM
+LDA  @356  # AC ← leitura de FPGA_RESET
+CEQ  @0    # flagZero =1 se RESET não foi pressionado
+JEQ  38    # se flagZero=1 pula RESTART
+JSR  96    # chama sub‑rotina RESTART
+JMP  19    # volta ao início do loop
+LDA  @320  # AC ← leitura das 8 chaves
+STA  @3    # MEM[3] ← limite de unidades
+LDA  @321  # AC ← leitura da chave SW8
+AND  @1    # mascara 0b00000001 (só o bit0 importa)
+STA  @4    # MEM[4] ← limite de dezenas
+LDA  @322  # AC ← leitura da chave SW9
+AND  @1    # mascara 0b00000001 (só o bit0 importa)
+STA  @5    # MEM[5] ← limite de centenas
+RET        # retorna ao laço principal
+STA  @511  # limpa o flag do KEY0 (debounce)
+LDA  @0    # AC ← MEM[0]
+SOMA @6    # AC ← AC + 1
+CEQ  @7    # flagZero =1 se AC = 10
+JEQ  57    # se flagZero=1 salta inc_dezenas
+STA  @0    # MEM[0] ← AC
+RET        # retorna ao laço principal
+LDI  $0    # prepara zero para inc_dezenas
+STA  @0    # MEM[0] ← 0 (unidades zerada)
+LDA  @1    # AC ← MEM[1]
+SOMA @6    # AC ← AC + 1
+CEQ  @7    # flagZero =1 se AC = 10
+JEQ  64    # se flagZero=1 salta inc_centenas
+STA  @1    # MEM[1] ← AC
+RET        # retorna ao laço principal
+LDI  $0    # prepara zero para inc_centenas
+STA  @1    # MEM[1] ← 0 (dezenas zerada)
+LDA  @2    # AC ← MEM[2]
+SOMA @6    # AC ← AC + 1
+CEQ  @7    # flagZero =1 se AC = 10
+JEQ  72    # se flagZero=1 salta trat_overflow
+STA  @2    # MEM[2] ← AC
+RET        # retorna ao laço principal
+LDI  $0    # inicia trat_overflow
+STA  @2    # MEM[2] ← 0 (centenas)
+LDI  $1    # prepara 1
+STA  @8    # MEM[8] ← 1 (flag inibir contagem)
+LDI  $1    # prepara 1
+STA  @257  # LEDR8 ← 1 (overflow)
+RET        # retorna ao laço principal
+LDA  @0    # testa unidades
+CEQ  @3    # flagZero =1 se MEM[3]=limite unidades
+JEQ  83    # se igual salta cont_lim2
+RET        # retorna ao laço principal
+LDA  @1    # testa dezenas
+CEQ  @4    # flagZero =1 se MEM[4]=limite dezenas
+JEQ  87    # se igual salta cont_lim3
+RET        # retorna ao laço principal
+LDA  @2    # testa centenas
+CEQ  @5    # flagZero =1 se MEM[5]=limite centenas
+JEQ  91    # se igual salta aplica_limit
+RET        # retorna ao laço principal
+LDI  $1    # aplica limite
+STA  @8    # MEM[8] ← 1 (flag inibir)
+LDI  $1    # prepara 1
+STA  @258  # LEDR9 ← 1 (limite atingido)
+RET        # retorna ao laço principal
+LDI  $0    # reinício de contagem
+STA  @0    # MEM[0] ← 0 (unidades)
+STA  @1    # MEM[1] ← 0 (dezenas)
+STA  @2    # MEM[2] ← 0 (centenas)
+LDI  $0    # prepara zero
+STA  @8    # MEM[8] ← 0 (flag inibir)
+LDI  $0    # prepara zero
+STA  @257  # LEDR8 ← 0
+STA  @258  # LEDR9 ← 0
+RET        # retorna ao laço principal
