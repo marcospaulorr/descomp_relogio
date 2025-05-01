@@ -33,7 +33,7 @@ STA @13 # flag_base_tempo = 0 (contador inicial)
 
 # Definindo constantes
 LDI $1
-STA @6 # const_1 = 1 (para incrementos)
+STA @6 # const_1 = 1 (para incrementos e verifica se as KEYs estão pressionadas)
 
 LDI $10
 STA @7 # const_10 = 10 (limite decimal)
@@ -80,9 +80,9 @@ skip_tick:
 
     # 3 -> Verifica KEY1 (ajuste de minutos)
     LDA @353 # AC <- KEY1
-    CEQ @9 # Compara com const_0. flagzero=1 se KEY1=0 (pressionado)
-    JEQ ajusta_min # Se pressionado (KEY1=0), vai ajustar minutos
-    JMP skip_min # Se não pressionado (KEY1=1), pula ajuste
+    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
+    JEQ ajusta_min # Se pressionado (KEY1=1), vai ajustar minutos
+    JMP skip_min # Se não pressionado (KEY1=0), pula ajuste
 
 ajusta_min:
     JSR AJUSTA_MIN # Sub-rotina de ajuste de minutos
@@ -91,9 +91,9 @@ ajusta_min:
 skip_min:
     # 4 -> Verifica KEY2 (ajuste de horas)
     LDA @354 # AC <- KEY2
-    CEQ @9 # Compara com const_0. flagzero=1 se KEY2=0 (pressionado)
-    JEQ ajuste_hora # Se pressionado (KEY2=0), vai para ajuste de horas
-    JMP skip_hora # Se não pressionado (KEY2=1), pula ajuste
+    CEQ @6 # Compara com const_1. flagzero=1 se KEY2=1 (pressionado)
+    JEQ ajuste_hora # Se pressionado (KEY2=1), vai para ajuste de horas
+    JMP skip_hora # Se não pressionado (KEY2=0), pula ajuste
 
 ajuste_hora:
     JSR AJUSTA_HORA # Sub-rotina de ajuste de horas
@@ -102,9 +102,9 @@ ajuste_hora:
 skip_hora:
     # 5 -> Verifica KEY3 (modo rápido/normal)
     LDA @355 # AC <- KEY3
-    CEQ @9 # Compara const_0. flagzero=1 se KEY3=0 (pressionado)
-    JEQ toggle_modo # Se pressionado (KEY3=0), vai alternar o modo
-    JMP skip_modo # Se não pressionado (KEY3=1), pula a mudança de modo
+    CEQ @6 # Compara const_1. flagzero=1 se KEY3=1 (pressionado)
+    JEQ toggle_modo # Se pressionado (KEY3=1), vai alternar o modo
+    JMP skip_modo # Se não pressionado (KEY3=0), pula a mudança de modo
 
 toggle_modo:
     JSR TOGGLE_MODO # Sub-rotina para alternar modo rápido/normal
@@ -246,7 +246,7 @@ zera_min_dez:
 # Aguarda soltar o botão KEY1
 aguarda_soltar_min:
     LDA @353 # AC <- KEY1
-    CEQ @9 # Compara com 0
+    CEQ @6 # Compara com 1
     JEQ aguarda_soltar_min # Se ainda pressionado, continua aguardando
     RET # Retorna quando o botão for solto
 
@@ -298,7 +298,7 @@ reset_hora:
 # Aguarda soltar o botão KEY2
 aguarda_soltar_hora:
     LDA @354 # Lê KEY2
-    CEQ @9 # Compara com 0
+    CEQ @6 # Compara com 1
     JEQ aguarda_soltar_hora # Se ainda pressionado, continua aguardando
     RET # Retorna quando o botão for solto
 
@@ -333,6 +333,6 @@ ativa_rapido:
 # Aguarda soltar o botão KEY3
 aguarda_soltar_modo:
     LDA @355 # Lê KEY3
-    CEQ @9 # Compara com 0
+    CEQ @6 # Compara com 1
     JEQ aguarda_soltar_modo # Se ainda pressionado, continua aguardando
     RET # Retorna quando o botão for solto
