@@ -58,19 +58,19 @@ CONTENT BEGIN
 	49  : LDA & "000000101"; --     LDA @5
 	50  : STA & "100100101"; --     STA @293
 	51  : LDA & "101100001"; --     LDA @353
-	52  : CEQ & "000001001"; --     CEQ @9
+	52  : CEQ & "000000110"; --     CEQ @6
 	53  : JEQ & "000110111"; --     JEQ ajusta_min
 	54  : JMP & "000111001"; --     JMP skip_min
 	55  : JSR & "010000101"; --     JSR AJUSTA_MIN
 	56  : JMP & "000111001"; --     JMP skip_min
 	57  : LDA & "101100010"; --     LDA @354
-	58  : CEQ & "000001001"; --     CEQ @9
+	58  : CEQ & "000000110"; --     CEQ @6
 	59  : JEQ & "000111101"; --     JEQ ajuste_hora
 	60  : JMP & "000111111"; --     JMP skip_hora
 	61  : JSR & "010011110"; --     JSR AJUSTA_HORA
 	62  : JMP & "000111111"; --     JMP skip_hora
 	63  : LDA & "101100011"; --     LDA @355
-	64  : CEQ & "000001001"; --     CEQ @9
+	64  : CEQ & "000000110"; --     CEQ @6
 	65  : JEQ & "001000011"; --     JEQ toggle_modo
 	66  : JMP & "001000101"; --     JMP skip_modo
 	67  : JSR & "010111101"; --     JSR TOGGLE_MODO
@@ -161,7 +161,7 @@ CONTENT BEGIN
 	152 : STA & "000000011"; --     STA @3
 	153 : JMP & "010011010"; --     JMP aguarda_soltar_min
 	154 : LDA & "101100001"; --     LDA @353
-	155 : CEQ & "000001001"; --     CEQ @9
+	155 : CEQ & "000000110"; --     CEQ @6
 	156 : JEQ & "010011010"; --     JEQ aguarda_soltar_min
 	157 : RET & "000000000"; --     RET
 	158 : STA & "111111110"; --     STA @510
@@ -192,7 +192,7 @@ CONTENT BEGIN
 	183 : STA & "000000101"; --     STA @5
 	184 : JMP & "010111001"; --     JMP aguarda_soltar_hora
 	185 : LDA & "101100010"; --     LDA @354
-	186 : CEQ & "000001001"; --     CEQ @9
+	186 : CEQ & "000000110"; --     CEQ @6
 	187 : JEQ & "010111001"; --     JEQ aguarda_soltar_hora
 	188 : RET & "000000000"; --     RET
 	189 : STA & "111111110"; --     STA @510
@@ -210,7 +210,7 @@ CONTENT BEGIN
 	201 : STA & "100000000"; --     STA @256
 	202 : JMP & "011001011"; --     JMP aguarda_soltar_modo
 	203 : LDA & "101100011"; --     LDA @355
-	204 : CEQ & "000001001"; --     CEQ @9
+	204 : CEQ & "000000110"; --     CEQ @6
 	205 : JEQ & "011001011"; --     JEQ aguarda_soltar_modo
 	206 : RET & "000000000"; --     RET
 END;
