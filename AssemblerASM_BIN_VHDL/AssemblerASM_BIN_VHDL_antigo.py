@@ -1,24 +1,24 @@
 """
-AssemblerASM_BIN_VHDL.py   (maio‑2025 – agora com expansão de macros)
+AssemblerASM_BIN_VHDL.py   (abril-2025 — formato “constante & bits”)
 --------------------------------------------------------------------
 • Lê  ASM.txt   ➜  gera
-      ├─ BIN.txt      (tmp(i) := OPC & "bits";        — 13 bits)
+      ├─ BIN.txt      (instruções no formato  tmp(i) := OPC & "bits";)
       └─ initROM.mif  (mesmo conteúdo em binário)
 
-• Suporta labels, .equ, 8/9 bits de imediato, comentários, E
-  expande macros como SOMAi e INCR9 antes da 2ª passada.
+• Suporta labels, .equ, 8 ou 9 bits de imediato, comentários, etc.
 """
 
 from __future__ import annotations
 import re
 from pathlib import Path
 
+
 # ───────────────────  CONFIGURAÇÃO  ───────────────────────────────
 inputASM   = Path("ASM.txt")
 outputBIN  = Path("BIN.txt")
 outputMIF  = Path("initROM.mif")
 
-noveBits   = True                               # 9‑bits (bit de habilita)
+noveBits   = True                               # 9-bits (bit de habilita)
 
 OPCODE_WIDTH     = 4
 IMMEDIATE_WIDTH  = 9 if noveBits else 8
@@ -37,17 +37,13 @@ mne: dict[str, int] = {
     "JSR": 0x9,
     "RET": 0xA,
     "AND": 0xB,
-    "ANDI":0xC,          # já era suportado
+    "ANDI": 0xC,          # ← novo opcode
 }
 
 # ───────────────────  REGEX auxiliares  ───────────────────────────
 COMMENT_RE = re.compile(r"#.*$")
 LABEL_RE   = re.compile(r"^([A-Za-z_]\w*):")
 EQU_RE     = re.compile(r"^([A-Za-z_]\w*)\s*\.equ\s*(\d+)")
-
-# macro‑regex (SOMAi $ k , regX)   — tolera espaços extras
-SOMAI_RE   = re.compile(r"^SOMAi\s+\$\s*(\d+)\s*,\s*(\w+)", re.I)
-INCR9_RE   = re.compile(r"^INCR9", re.I)
 
 # ───────────────────  FUNÇÕES utilitárias  ────────────────────────
 def read_file(path: Path) -> list[str]:
@@ -61,40 +57,6 @@ def strip_comment(line: str) -> tuple[str, str]:
 
 def is_empty(line: str) -> bool:
     return len(line.strip()) == 0
-
-# ───────────────────  EXPANSÃO DE MACROS  ─────────────────────────
-def expand_macros(lines: list[str]) -> list[str]:
-    out: list[str] = []
-    for line in lines:
-        if is_empty(line):
-            out.append("")
-            continue
-
-        l = line.lstrip()                 # <<< NOVO
-
-        # ---------- SOMAi -----------------------------------------
-        m = SOMAI_RE.match(l)             # usa l em vez de line
-        if m:
-            k_val, dst = m.groups()
-            out.extend([
-                f"LDI ${k_val}",
-                f"SOMA @{dst}",
-                f"STA @{dst}",
-            ])
-            continue
-
-        # ---------- INCR9 -----------------------------------------
-        if INCR9_RE.match(l):             # usa l
-            out.extend([
-                "LDI $9",
-                "SOMA @ADDR_PTR",
-                "STA @ADDR_PTR",
-            ])
-            continue
-
-        # nenhum macro → copia linha original
-        out.append(line)
-    return out
 
 
 # ───────────────────  CLASSE ASSEMBLER  ───────────────────────────
@@ -112,7 +74,7 @@ class Assembler:
         for ln, raw in enumerate(lines, 1):
             line, _ = strip_comment(raw)
 
-            # .equ
+            # .equ  (constante)
             if m := EQU_RE.match(line):
                 consts[m.group(1)] = int(m.group(2))
                 cleaned.append("")
@@ -124,34 +86,34 @@ class Assembler:
                 if name in labels:
                     raise ValueError(f"Label repetido '{name}' (linha {ln})")
                 labels[name] = pc
-                line = line[m.end():].lstrip()
+                line = line[m.end():].lstrip()        # resta a instrução
 
             if is_empty(line):
                 cleaned.append("")
                 continue
 
             cleaned.append(line)
-            pc += 1
+            pc += 1                                   # só conta instruções
 
         return cleaned, consts, labels, pc - 1
 
     # ---------- converte operando para bits -----------------------
     def _encode_immediate(self, token: str, symbols: dict[str, int]) -> str:
-        if token.startswith("$"):
+        if token.startswith("$"):                     # constante decimal
             val = int(token[1:])
 
-        elif token.startswith("@"):
+        elif token.startswith("@"):                   # endereço
             arg = token[1:]
             val = int(arg) if arg.isdecimal() else symbols.get(arg, None)
             if val is None:
                 raise ValueError(f"Símbolo não definido: {arg}")
 
-            if noveBits:
+            if noveBits:                              # bit de hab. memória
                 hab = 1 if val > 0xFF else 0
                 val &= 0xFF
                 return f"{hab:1b}{val:08b}"
 
-        else:
+        else:                                         # label / .equ
             if token not in symbols:
                 raise ValueError(f"Símbolo não definido: {token}")
             val = symbols[token]
@@ -166,28 +128,31 @@ class Assembler:
         if mnem not in self.mne:
             raise ValueError(f"Mnemónico desconhecido '{mnem}'")
 
-        const_name = mnem
-        imm_bits   = "0"*self.imm_w if len(parts)==1 \
+        const_name = mnem                           # uso do próprio nome
+        imm_bits   = "0" * self.imm_w if len(parts) == 1 \
                      else self._encode_immediate(parts[1], symbols)
+
         return const_name, imm_bits
 
     # ---------- assemble completo --------------------------------
     def assemble(self, asm_path: Path):
-        lines    = read_file(asm_path)
-        cleaned, consts, labels, _ = self._first_pass(lines)
-        expanded = expand_macros(cleaned)                     # ★ NOVO
+        lines = read_file(asm_path)
+        cleaned, consts, labels, max_addr = self._first_pass(lines)
 
-        symbols = {**consts, **labels}
+        symbols = {**consts, **labels}              # tabela única
 
         vhdl, mif = [], []
-        addr_w = len(str(len(expanded)-1))
+        addr_w = len(str(max_addr))
         pc = 0
 
-        for raw_line, inst in zip(lines, expanded):
-            _, comment = strip_comment(raw_line)
+        for raw, inst in zip(lines, cleaned):
+            _, comment = strip_comment(raw)
 
-            if is_empty(inst):
-                vhdl.append(f"-- {comment}" if comment else "")
+            if is_empty(inst):                      # linha vazia/comentário
+                if comment:
+                    vhdl.append(f"-- {comment}")
+                else:
+                    vhdl.append("")
                 continue
 
             const, bits = self._line_to_const_bits(inst, symbols)
@@ -201,16 +166,19 @@ class Assembler:
             )
             pc += 1
 
-        return vhdl, mif
+        return vhdl, mif, consts, labels, max_addr
+
 
 # ───────────────────  MAIN  ───────────────────────────────────────
 def main():
     asm = Assembler(mne, OPCODE_WIDTH, IMMEDIATE_WIDTH)
-    vhdl, mif = asm.assemble(inputASM)
+    vhdl, mif, *_ = asm.assemble(inputASM)
 
+    # grava BIN.txt
     outputBIN.write_text("\n".join(vhdl), encoding="utf-8")
     print(f"Gerado {outputBIN}")
 
+    # grava initROM.mif
     depth = 2 ** ((len(mif)).bit_length())
     header = [
         f"WIDTH={WORD_WIDTH};",
@@ -226,6 +194,7 @@ def main():
 
     outputMIF.write_text("\n".join(header + mif + footer), encoding="utf-8")
     print(f"Gerado {outputMIF}")
+
 
 if __name__ == "__main__":
     try:
