@@ -56,9 +56,115 @@ LOOP:
     # 1 -> Leitura de KEY0 (base de tempo/incremento de segundos)
     LDA @352 # AC <- KEY0
     ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com const_0. flagzero=1 se KEY0=1 (pressionado)
+    CEQ @6 # Compara com const_1. flagzero=1 se KEY0=1 (pressionado)
     JEQ inc_tempo # Se pressionado (KEY0=1), vai para incremento
+
+    
+    LDA @353 # AC <- KEY1
+    ANDI $1 # Pega o último bit.
+    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
+    JEQ INICIA_CONFIG # Se pressionado (KEY1=1), vai para incremento
+
     JMP skip_tick # Se não pressionado (KEY0=0), pula incremento
+
+INICIA_CONFIG:
+    # Limpa KEY1 (debounce)
+    STA @510
+    # Zera o relógio completamente
+    LDI $0
+    STA @0  # segundos (unidades)
+    STA @1  # segundos (dezenas)
+    STA @2  # minutos (unidades)
+    STA @3  # minutos (dezenas)
+    STA @4  # horas (unidades)
+    STA @5  # horas (dezenas)
+    # Atualiza displays mostrando todos zerados
+    LDI $0
+    STA @288  # HEX0
+    STA @289  # HEX1
+    STA @290  # HEX2
+    STA @291  # HEX3
+    STA @292  # HEX4
+    STA @293  # HEX5
+
+    JMP DEFINE_UNI_SEG
+
+DEFINE_UNI_SEG:
+    LDA @320 #SW0-7
+    ANDI $15 # Pega os 4 últimos bits
+    STA @0 # Salvei o valor da variável na mémoria de unidade de segundo
+    STA @288 # Mostra em HEX0
+
+    LDA @353 # AC <- KEY1
+    ANDI $1 # Pega o último bit.
+    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
+    JEQ DEFINE_DEZ_SEG # Se pressionado (KEY1=1), vai para incremento
+    JMP DEFINE_UNI_SEG # Fica lendo até apertar
+
+DEFINE_DEZ_SEG:
+    STA @511 # Limpa KEY1
+    LDA @320 #SW0-7
+    ANDI $15 # Pega os 4 últimos bits
+    STA @1 # Salvei o valor da variável na mémoria de dezena de segundo
+    STA @289 # Mostra em HEX1
+
+    LDA @353 # AC <- KEY1
+    ANDI $1 # Pega o último bit.
+    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
+    JEQ DEFINE_UNI_MIN # Se pressionado (KEY1=1), vai para incremento
+    JMP DEFINE_DEZ_SEG # Fica lendo até apertar
+
+DEFINE_UNI_MIN:
+    STA @511 # Limpa KEY1
+    LDA @320 #SW0-7
+    ANDI $15 # Pega os 4 últimos bits
+    STA @2 # Salvei o valor da variável na mémoria de unidade de minuto
+    STA @290 # Mostra em HEX2
+
+    LDA @353 # AC <- KEY1
+    ANDI $1 # Pega o último bit.
+    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
+    JEQ DEFINE_DEZ_MIN # Se pressionado (KEY1=1), vai para incremento
+    JMP DEFINE_UNI_MIN # Fica lendo até apertar
+
+DEFINE_DEZ_MIN:
+    STA @511 # Limpa KEY1
+    LDA @320 #SW0-7
+    ANDI $15 # Pega os 4 últimos bits
+    STA @3 # Salvei o valor da variável na mémoria de dezena de minuto
+    STA @291 # Mostra em HEX3
+
+    LDA @353 # AC <- KEY1
+    ANDI $1 # Pega o último bit.
+    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
+    JEQ DEFINE_UNI_HORA # Se pressionado (KEY1=1), vai para incremento
+    JMP DEFINE_DEZ_MIN # Fica lendo até apertar
+
+DEFINE_UNI_HORA:
+    STA @511 # Limpa KEY1
+    LDA @320 #SW0-7
+    ANDI $15 # Pega os 4 últimos bits
+    STA @4 # Salvei o valor da variável na mémoria de unidade de hora
+    STA @292 # Mostra em HEX4
+
+    LDA @353 # AC <- KEY1
+    ANDI $1 # Pega o último bit.
+    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
+    JEQ DEFINE_DEZ_HORA # Se pressionado (KEY1=1), vai para incremento
+    JMP DEFINE_UNI_HORA # Fica lendo até apertar
+
+DEFINE_DEZ_HORA:
+    STA @511 # Limpa KEY1
+    LDA @320 #SW0-7
+    ANDI $15 # Pega os 4 últimos bits
+    STA @5 # Salvei o valor da variável na mémoria de dezena de hora
+    STA @292 # Mostra em HEX5
+
+    LDA @353 # AC <- KEY1
+    ANDI $1 # Pega o último bit.
+    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
+    JEQ LOOP # Se pressionado (KEY1=1), vai para incremento
+    JMP DEFINE_UNI_MIN # Fica lendo até apertar
 
 inc_tempo:
     JSR INC_SEGUNDO # Sub-rotina de incremento
