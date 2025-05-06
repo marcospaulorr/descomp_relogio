@@ -39,7 +39,8 @@ mne: dict[str, int] = {
     "AND": 0xB,
     "ANDI":0xC,   
     "JLT": 0xD,
-    "CLT": 0xE,       # já era suportado
+    "CLT": 0xE,
+    "CLR": 0XF,
 }
 
 # ───────────────────  REGEX auxiliares  ───────────────────────────

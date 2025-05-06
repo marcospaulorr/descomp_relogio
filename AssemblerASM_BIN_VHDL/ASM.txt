@@ -1,5 +1,5 @@
 # ------ SETUP -----
-LDI $0 # AC <- 0
+CLR # AC <- 0
 
 # Limpa todos os displays e LEDs
 STA @288 # HEX0 - segundos (unidades)
@@ -50,6 +50,8 @@ STA @11 # const_24 = 24 (limite de horas total)
 LDI $2
 STA @14 # const_2 = 2 (para verificação de dezena de horas)
 
+JMP INICIA_CONFIG # Se pressionado (KEY1=1), vai para incremento
+
 # ----- FIM DO SETUP ----
 # Laço principal (LOOP)
 LOOP:
@@ -58,20 +60,13 @@ LOOP:
     ANDI $1 # Pega o último bit.
     CEQ @6 # Compara com const_1. flagzero=1 se KEY0=1 (pressionado)
     JEQ inc_tempo # Se pressionado (KEY0=1), vai para incremento
-
-    
-    LDA @353 # AC <- KEY1
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
-    JEQ INICIA_CONFIG # Se pressionado (KEY1=1), vai para incremento
-
     JMP skip_tick # Se não pressionado (KEY0=0), pula incremento
 
 INICIA_CONFIG:
     # Limpa KEY1 (debounce)
     STA @510
     # Zera o relógio completamente
-    LDI $0
+    CLR
     STA @0  # segundos (unidades)
     STA @1  # segundos (dezenas)
     STA @2  # minutos (unidades)
@@ -79,7 +74,7 @@ INICIA_CONFIG:
     STA @4  # horas (unidades)
     STA @5  # horas (dezenas)
     # Atualiza displays mostrando todos zerados
-    LDI $0
+    CLR
     STA @288  # HEX0
     STA @289  # HEX1
     STA @290  # HEX2
@@ -87,84 +82,7 @@ INICIA_CONFIG:
     STA @292  # HEX4
     STA @293  # HEX5
 
-    JMP DEFINE_UNI_SEG
-
-DEFINE_UNI_SEG:
-    LDA @320 #SW0-7
-    ANDI $15 # Pega os 4 últimos bits
-    STA @0 # Salvei o valor da variável na mémoria de unidade de segundo
-    STA @288 # Mostra em HEX0
-
-    LDA @353 # AC <- KEY1
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
-    JEQ DEFINE_DEZ_SEG # Se pressionado (KEY1=1), vai para incremento
-    JMP DEFINE_UNI_SEG # Fica lendo até apertar
-
-DEFINE_DEZ_SEG:
-    STA @511 # Limpa KEY1
-    LDA @320 #SW0-7
-    ANDI $15 # Pega os 4 últimos bits
-    STA @1 # Salvei o valor da variável na mémoria de dezena de segundo
-    STA @289 # Mostra em HEX1
-
-    LDA @353 # AC <- KEY1
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
-    JEQ DEFINE_UNI_MIN # Se pressionado (KEY1=1), vai para incremento
-    JMP DEFINE_DEZ_SEG # Fica lendo até apertar
-
-DEFINE_UNI_MIN:
-    STA @511 # Limpa KEY1
-    LDA @320 #SW0-7
-    ANDI $15 # Pega os 4 últimos bits
-    STA @2 # Salvei o valor da variável na mémoria de unidade de minuto
-    STA @290 # Mostra em HEX2
-
-    LDA @353 # AC <- KEY1
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
-    JEQ DEFINE_DEZ_MIN # Se pressionado (KEY1=1), vai para incremento
-    JMP DEFINE_UNI_MIN # Fica lendo até apertar
-
-DEFINE_DEZ_MIN:
-    STA @511 # Limpa KEY1
-    LDA @320 #SW0-7
-    ANDI $15 # Pega os 4 últimos bits
-    STA @3 # Salvei o valor da variável na mémoria de dezena de minuto
-    STA @291 # Mostra em HEX3
-
-    LDA @353 # AC <- KEY1
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
-    JEQ DEFINE_UNI_HORA # Se pressionado (KEY1=1), vai para incremento
-    JMP DEFINE_DEZ_MIN # Fica lendo até apertar
-
-DEFINE_UNI_HORA:
-    STA @511 # Limpa KEY1
-    LDA @320 #SW0-7
-    ANDI $15 # Pega os 4 últimos bits
-    STA @4 # Salvei o valor da variável na mémoria de unidade de hora
-    STA @292 # Mostra em HEX4
-
-    LDA @353 # AC <- KEY1
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
-    JEQ DEFINE_DEZ_HORA # Se pressionado (KEY1=1), vai para incremento
-    JMP DEFINE_UNI_HORA # Fica lendo até apertar
-
-DEFINE_DEZ_HORA:
-    STA @511 # Limpa KEY1
-    LDA @320 #SW0-7
-    ANDI $15 # Pega os 4 últimos bits
-    STA @5 # Salvei o valor da variável na mémoria de dezena de hora
-    STA @292 # Mostra em HEX5
-
-    LDA @353 # AC <- KEY1
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
-    JEQ LOOP # Se pressionado (KEY1=1), vai para incremento
-    JMP DEFINE_UNI_MIN # Fica lendo até apertar
+    JMP LOOP
 
 inc_tempo:
     JSR INC_SEGUNDO # Sub-rotina de incremento
@@ -186,43 +104,10 @@ skip_tick:
     STA @293 # HEX5 <- horas (dezenas)
 
     # 3 -> Verifica KEY1 (ajuste de minutos)
-    LDA @353 # AC <- KEY1
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com const_1. flagzero=1 se KEY1=1 (pressionado)
-    JEQ ajusta_min # Se pressionado (KEY1=1), vai ajustar minutos
-    JMP skip_min # Se não pressionado (KEY1=0), pula ajuste
+    
+    JMP LOOP # Se não pressionado (KEY1=0), pula ajuste
 
-ajusta_min:
-    JSR AJUSTA_MIN # Sub-rotina de ajuste de minutos
-    JMP skip_min # Continua após ajuste
 
-skip_min:
-    # 4 -> Verifica KEY2 (ajuste de horas)
-    LDA @354 # AC <- KEY2
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com const_1. flagzero=1 se KEY2=1 (pressionado)
-    JEQ ajuste_hora # Se pressionado (KEY2=1), vai para ajuste de horas
-    JMP skip_hora # Se não pressionado (KEY2=0), pula ajuste
-
-ajuste_hora:
-    JSR AJUSTA_HORA # Sub-rotina de ajuste de horas
-    JMP skip_hora # Continua após ajuste
-
-skip_hora:
-    # 5 -> Verifica KEY3 (modo rápido/normal)
-    LDA @355 # AC <- KEY3
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara const_1. flagzero=1 se KEY3=1 (pressionado)
-    JEQ toggle_modo # Se pressionado (KEY3=1), vai alternar o modo
-    JMP skip_modo # Se não pressionado (KEY3=0), pula a mudança de modo
-
-toggle_modo:
-    JSR TOGGLE_MODO # Sub-rotina para alternar modo rápido/normal
-    JMP skip_modo # Continua após alternar modo
-
-skip_modo:
-    # 6 -> volta ao inicio do LOOP
-    JMP LOOP
 
 # ======= SUB-ROTINAS =======
 
@@ -240,56 +125,67 @@ INC_SEGUNDO:
 
 inc_seg_dez:
     # Incrementa SEGUNDOS (dezenas)
-    LDI $0
+    CLR
     STA @0 # Zera unidade de segundos
     LDA @1 # AC <- segundos (dezenas)
     SOMA @6 # AC <- AC + 1
     CEQ @8 # Compara com 6 (flagzero=1 se AC=6)
     JEQ inc_uni_min # Se igual a 6, incrementa minutos
     STA @1 # Caso contrario, atualiza dezena de segundos
-    RET
+    JMP skip_tick
 
 inc_uni_min:
     # Incrementa MINUTOS (unidades)
-    LDI $0
+    CLR
     STA @1 # Zera dezena de segundos
     LDA @2 # AC <- minutos (unidades)
     SOMA @6 # AC <- AC + 1
     CEQ @7 # Compara com 10 (flagzero=1 se AC=10)
     JEQ inc_min_dez # Se igual a 10, incrementa dezena de minutos
     STA @2 # Caso contrario, atualiza unidade de minutos
-    RET
+    JMP skip_tick
 
 inc_min_dez:
     # Incrementa MINUTOS (dezenas)
-    LDI $0
+    CLR
     STA @2 # Zera unidade de minutos
     LDA @3 # AC <- minutos (dezenas)
     SOMA @6 # AC <- AC + 1
     CEQ @8 # Compara com 6 (flagzero=1 se AC=6)
     JEQ inc_hora_uni # Se igual a 6, incrementa horas
     STA @3 # Caso contrario, atualiza dezena de minutos
-    RET
+    JMP skip_tick
 
 inc_hora_uni:
     # Incrementa HORAS (unidades)
-    LDI $0
-    STA @3 # Zera dezena de minutos
-    LDA @4 # AC <- horas (unidades)
-    SOMA @6 # AC <- AC + 1
-    STA @15 # Guarda temporariamente o valor incrementado em MEM[15]
+    CLR
+    STA @3        # Zera dezena de minutos
+    LDA @4        # AC <- horas (unidades)
+    SOMA @6       # AC <- AC + 1
+    STA @15       # Guarda temporariamente o valor incrementado
 
-    # Verifica casos especiais de horas
-    LDA @5 # AC <- horas (dezenas)
-    CEQ @14 # Compara com 2
-    JEQ verifica_24 # Se dezena=2, verifica se chegou a 24h
+    # Verifica se dezena da hora é igual a 2
+    LDA @5
+    CEQ @14       # Compara com 2
+    JEQ verifica_24
 
-    # Caso normal (dezena diferente de 2)
-    LDA @15 # AC <- MEM[15] (valor incrementado da unidade de horas)
-    CEQ @7 # Compara com 10 (flagzero=1 se unidade=10)
-    JEQ inc_hora_dez # Se unidade=10, incrementa dezena de horas
-    STA @4 # Caso contrario, atualiza unidade de horas
-    RET
+    # Se for menor que 2, verifica se unidade < 10
+    CLT @14       # Compara se dezena < 2
+    JLT verifica_menor_2
+
+    # Se for maior que 2 (erro, mas previne), unidade deve ir até 3
+    LDA @15
+    CEQ @10       # Compara com 4
+    JEQ inc_hora_dez
+    STA @4
+    JMP skip_tick
+
+verifica_menor_2:
+    LDA @15
+    CEQ @7        # Compara com 10
+    JEQ inc_hora_dez
+    STA @4
+    JMP skip_tick
 
 verifica_24:
     # Verifica se chegou em 24:00:00
@@ -297,155 +193,27 @@ verifica_24:
     CEQ @10 # Compara com 4 (flagzero=1 se unidade=4)
     JEQ reset_24h # Se unidade=4 e dezena=2, chegou-se em 24h -> reset
     STA @4 # Caso contrario, atualiza unidade de horas
-    RET
+    JMP skip_tick
 
 inc_hora_dez:
     # Incrementa HORAS (dezenas)
-    LDI $0
+    CLR
     STA @4 # Zera unidade de horas
     LDA @5 # AC <- horas (dezenas)
     SOMA @6 # AC <- AC + 1
     STA @5 # Atualiza dezena de horas
-    RET
+    JMP skip_tick
 
 reset_24h:
     # Reseta para 00:00:00
-    LDI $0
+    CLR
     STA @0 # Zera segundos (unidades)
     STA @1 # Zera segundos (dezenas)
     STA @2 # Zera minutos (unidades)
     STA @3 # Zera minutos (dezenas)
     STA @4 # Zera horas (unidades)
     STA @5 # Zera horas (dezenas)
-    RET
+    JMP skip_tick
 
-# Sub-rotina para ajustar minutos
-AJUSTA_MIN:
-    STA @510 # Limpa KEY1 (debounce)
 
-    # Zera segundos
-    LDI $0
-    STA @0 # Zera segundos (unidades)
-    STA @1 # Zera segundos (dezenas)
 
-    # Incrementa unidade de minutos
-    LDA @2 # AC <- minutos (unidades)
-    SOMA @6 # AC <- AC + 1
-    CEQ @7 # Compara com 10 (flagzero=1 se AC=10)
-    JEQ ajusta_min_dez # Se unidade=10, incrementa dezena
-    STA @2 # Caso contrário, atualiza unidade
-    JMP aguarda_soltar_min # Aguarda soltar o botão
-
-ajusta_min_dez:
-    # Incrementa dezena de minutos
-    LDI $0
-    STA @2 # Zera unidade de minutos
-    LDA @3 # AC <- minutos (dezenas)
-    SOMA @6 # AC <- AC + 1
-    CEQ @8 # Compara com 6 (flagzero=1 se AC=6)
-    JEQ zera_min_dez # Se dezena=6, zera dezena
-    STA @3 # Caso contrário, atualiza dezena
-    JMP aguarda_soltar_min # Aguarda soltar o botão
-
-zera_min_dez:
-    # Zera dezena de minutos (não incrementa hora)
-    LDI $0
-    STA @3 # Zera dezena de minutos
-    JMP aguarda_soltar_min # Aguarda soltar o botão
-
-# Aguarda soltar o botão KEY1
-aguarda_soltar_min:
-    LDA @353 # AC <- KEY1
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com 1
-    JEQ aguarda_soltar_min # Se ainda pressionado, continua aguardando
-    RET # Retorna quando o botão for solto
-
-# Sub-rotina para ajustar horas
-AJUSTA_HORA:
-    STA @510 # Limpa KEY2 (debounce)
-
-    # Incrementa unidade de horas
-    LDA @4 # AC <- horas (unidades)
-    SOMA @6 # AC <- AC + 1
-    STA @15 # Guarda temporariamente o valor incrementado
-
-    # Verifica casos especiais para horas
-    LDA @5 # AC <- horas (dezenas)
-    CEQ @14 # Compara com 2 (flagzero=1 se dezena=2)
-    JEQ verifica_limite_hora # Se dezena=2, verifica limite 23h
-
-    # Caso normal (dezena diferente de 2)
-    LDA @15 # Recupera valor incrementado
-    CEQ @7 # Compara com 10 (flagzero=1 se unidade=10)
-    JEQ ajusta_hora_dez # Se unidade=10, incrementa dezena
-    STA @4 # Caso contrário, atualiza unidade
-    JMP aguarda_soltar_hora # Aguarda soltar o botão
-
-verifica_limite_hora:
-    # Verifica se chegou em 24h
-    LDA @15 # AC <- unidade de horas incrementada
-    CEQ @10 # Compara com 4 (flagzero=1 se unidade=4)
-    JEQ reset_hora # Se unidade=4 e dezena=2, chegou a 24h -> zera
-    STA @4 # Caso contrário, atualiza unidade
-    JMP aguarda_soltar_hora # Aguarda soltar o botão
-
-ajusta_hora_dez:
-    # Incrementa dezena de horas
-    LDI $0
-    STA @4 # Zera unidade de horas
-    LDA @5 # AC <- horas (dezenas)
-    SOMA @6 # AC <- AC + 1
-    STA @5 # Atualiza dezena de horas
-    JMP aguarda_soltar_hora # Aguarda soltar o botão
-
-reset_hora:
-    # Zera horas (volta para 00)
-    LDI $0
-    STA @4 # Zera horas (unidades)
-    STA @5 # Zera horas (dezenas)
-    JMP aguarda_soltar_hora # Aguarda soltar o botão
-
-# Aguarda soltar o botão KEY2
-aguarda_soltar_hora:
-    LDA @354 # Lê KEY2
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com 1
-    JEQ aguarda_soltar_hora # Se ainda pressionado, continua aguardando
-    RET # Retorna quando o botão for solto
-
-# Sub-rotina para alternar entre modo normal e rápido
-TOGGLE_MODO:
-    STA @510 # Limpa KEY3 (debounce)
-    
-    # Inverte o valor da flag de ajuste rápido
-    LDA @12 # Carrega flag atual
-    CEQ @9 # Compara com 0 (flagzero=1 se flag=0)
-    JEQ ativa_rapido # Se flag=0, ativa modo rápido
-    
-    # Desativa modo rápido
-    LDI $0
-    STA @12 # flag_ajuste_rapido = 0
-    
-    # Apaga LED indicador (LED7)
-    LDI $0
-    STA @256 # Apaga todos os LEDs
-    JMP aguarda_soltar_modo # Aguarda soltar o botão
-
-ativa_rapido:
-    # Ativa modo rápido
-    LDI $1
-    STA @12 # flag_ajuste_rapido = 1
-    
-    # Acende LED indicador (LED7)
-    LDI $128 # Binário 10000000 (LED7)
-    STA @256 # Acende LED7
-    JMP aguarda_soltar_modo # Aguarda soltar o botão
-
-# Aguarda soltar o botão KEY3
-aguarda_soltar_modo:
-    LDA @355 # Lê KEY3
-    ANDI $1 # Pega o último bit.
-    CEQ @6 # Compara com 1
-    JEQ aguarda_soltar_modo # Se ainda pressionado, continua aguardando
-    RET # Retorna quando o botão for solto
